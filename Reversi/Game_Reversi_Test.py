@@ -6,7 +6,7 @@
 import sys
 import Game_Reversi as game
 
-g=game.Game_Reversi(8,8)
+g=game.Game_Reversi(6,6)
 turn=g.turn
 bFirst=True
 

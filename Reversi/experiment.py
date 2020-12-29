@@ -72,6 +72,7 @@ def runEpisode(step_limit):
         with open('result.txt', 'a') as f:
             f.writelines(line + '\n')
 
+
         ns_epoch.append(which_episode)
         pcts_win.append(float(total_win) / record_interval * 100)
         pcts_win_or_draw.append(float(total_win + total_draw) / record_interval * 100)
@@ -80,6 +81,14 @@ def runEpisode(step_limit):
         total_win = 0
         total_draw = 0
         total_lose = 0
+
+    # 1000回毎にモデルの書き出し
+    model_write_interval = 1000
+
+    if which_episode % model_write_interval == 0:
+       # 途中結果の書き出しの呼び出し
+        RLGlue.RL_cleanup()
+
 
 # RL_Glue初期化
 print("\n\nExperiment starting up!")

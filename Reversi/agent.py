@@ -11,6 +11,7 @@ import chainer.functions as F
 import chainer.links as L
 from chainer import cuda
 from chainer import optimizers
+from chainer import serializers
 from rlglue.agent.Agent import Agent
 from rlglue.agent import AgentLoader as AgentLoader
 from rlglue.types import Action
@@ -84,18 +85,19 @@ class QNet(chainer.Chain):
         t = chainer.Variable(self.xp.asarray(t_data))
         self.loss = F.mean_squared_error(Q, t)
         
-        print('Loss:', self.loss.data)
+       # print('Loss:', self.loss.data)
         
         return self.loss
         
 # エージェントクラス
 class KmoriReversiAgent(Agent):
     
-    #__init__(gpu, size)
+    #__init__(gpu, size,index)
     #    gpu: GPU 番号(0以上、CPU 使用の場合 -1)
     #    size: 正方形ボードの 1 辺の長さ(6 以上の偶数)
+    #    index: モデルファイルの初期値（-1は無し）
     # エージェントの初期化、学習の内容を定義する
-    def __init__(self, gpu, size):
+    def __init__(self, gpu, size, index):
         # サイズは 6 以上の偶数で。
         if size<6 and size%2 != 0 : print("size must be even number and 6 or above!") ; exit()
         # 盤の情報(オセロは8)
@@ -143,7 +145,10 @@ class KmoriReversiAgent(Agent):
         
         self.win_or_draw = 0
         self.stop_learning = 200
-    
+
+        self.file_idx=index
+        self.mode_name='my_model'
+
     #agent_init(task_spec_str)
     #    task_spec_str: RL_Glue から渡されるタスク情報
     # ゲーム情報の初期化
@@ -160,7 +165,16 @@ class KmoriReversiAgent(Agent):
         #　Arg2:　隠れ層ノード数
         #　Arg3：　出力層サイズ
         self.Q = QNet(self.bdim*self.n_frames, self.bdim*self.n_frames, self.dim)
-        
+        if self.file_idx>=0:
+            serializers.load_hdf5(self.mode_name+"_{0:05}.npz".format(self.file_idx), self.Q)
+            self.learn_start=0 
+
+        self.file_idx=self.file_idx+1 
+
+        # test write
+        #print("test write")
+        #serializers.save_hdf5('my_model.npz', self.Q , compression=4)
+
         if self.gpu >= 0:
             cuda.get_device(self.gpu).use()
             self.Q.to_gpu()
@@ -171,7 +185,7 @@ class KmoriReversiAgent(Agent):
         self.optimizer = optimizers.RMSpropGraves(lr=0.00025, alpha=0.95,
                                                   momentum=0.0)
         self.optimizer.setup(self.Q)
-    
+
     #agent_start(observation)
     #    observation: ゲーム状態(ボード状態など)
     #environment.py の env_startの次に呼び出される。
@@ -206,6 +220,7 @@ class KmoriReversiAgent(Agent):
     #エージェントの二手目以降、ゲームが終わるまで呼ばれる。
     #(Reversi の場合、報酬は常にゼロとなる)
     def agent_step(self, reward, observation):
+
         # ステップを1増加
         self.step_counter += 1
         
@@ -266,6 +281,14 @@ class KmoriReversiAgent(Agent):
         # (今後実装)
         # RL_Cleanup により呼ばれるはず。
         # ここでモデルをセーブすればきっといい。
+        print("model writting ... "+ str(self.file_idx))
+        if self.gpu >= 0:
+            self.Q.to_cpu()
+        serializers.save_hdf5(self.mode_name+"_{0:05}.npz".format(self.file_idx), self.Q , compression=4)
+        self.file_idx=self.file_idx+1
+        if self.gpu >= 0:
+            self.Q.to_gpu()
+
         pass
     
     def agent_message(self, message):
@@ -407,6 +430,8 @@ if __name__ == '__main__':
                         help='GPU ID (negative value indicates CPU)')
     parser.add_argument('--size', '-s', default=6, type=int,
                         help='Reversi board size')
+    parser.add_argument('--index', '-i', default=-1, type=int,
+                        help='model file start index')
     args = parser.parse_args()
     
-    AgentLoader.loadAgent(KmoriReversiAgent(args.gpu,args.size))
+    AgentLoader.loadAgent(KmoriReversiAgent(args.gpu,args.size,args.index))

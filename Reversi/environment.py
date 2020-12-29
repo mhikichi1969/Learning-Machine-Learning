@@ -96,7 +96,7 @@ class KmoriReversiEnvironment(Environment):
         # 盤の状態をRL_Glueを通してエージェントに渡す
         observation = Observation()
         observation.intArray = self.map
-        
+
         return observation
         
     #env_step(action)
