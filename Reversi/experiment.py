@@ -89,6 +89,15 @@ def runEpisode(step_limit):
        # 途中結果の書き出しの呼び出し
         RLGlue.RL_cleanup()
 
+def saveGraph(idx, ns_epoch, pcts_win_or_draw):
+    # 学習結果をグラフで出力
+    plt.plot(np.asarray(ns_epoch), np.asarray(pcts_win_or_draw))
+    plt.xlabel("episode-{}".format(idx))
+    plt.ylabel('percentage')
+    plt.title('Average win or draw rate')
+    plt.grid(True)
+    plt.savefig("percentages_{0}.png".format(idx))
+
 
 # RL_Glue初期化
 print("\n\nExperiment starting up!")
@@ -96,17 +105,20 @@ task_spec = RLGlue.RL_init()
 print("RL_init called, the environment sent task spec: " + task_spec)
 
 # 50,000回実行
-for _ in range(0, 5 * 10**4):
+for cnt in range(0, 5 * 10**4):
     runEpisode(0)
+    if cnt>0 and cnt%1000==0:
+        saveGraph(cnt,ns_epoch,pcts_win_or_draw)
 
 # 学習結果をグラフで出力
+"""
 plt.plot(np.asarray(ns_epoch), np.asarray(pcts_win_or_draw))
 plt.xlabel('episode')
 plt.ylabel('percentage')
 plt.title('Average win or draw rate')
 plt.grid(True)
 plt.savefig("percentages.png")
-
+"""
 RLGlue.RL_cleanup()
 
 # 終了時刻をファイルに書出し

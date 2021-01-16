@@ -1,7 +1,7 @@
 #
 # -*- coding: utf-8 -*- 
 import numpy as np
-
+import random
 
 class Game_Reversi:
     turn = 1      #agent=1,environment=-1
@@ -16,7 +16,7 @@ class Game_Reversi:
     r_lose = -1.0
     
     # 表示
-    render=True
+    render=False
     
     #__init__(n_rows,n_cols)
     #    n_rows: ボードサイズ縦
@@ -29,11 +29,18 @@ class Game_Reversi:
         
         self.g_board=np.zeros([self.n_rows,self.n_cols],dtype=np.int16)
         # オセロ、中心に最初の4コマを置く
-        self.g_board[self.n_rows//2-1,self.n_cols//2-1]=1
-        self.g_board[self.n_rows//2-1,self.n_cols//2]=-1
-        self.g_board[self.n_rows//2,self.n_cols//2-1]=-1
-        self.g_board[self.n_rows//2,self.n_cols//2]=1
-    
+        color = random.randint(0,1)
+        if color==0:
+            self.g_board[self.n_rows//2-1,self.n_cols//2-1]=1
+            self.g_board[self.n_rows//2-1,self.n_cols//2]=-1
+            self.g_board[self.n_rows//2,self.n_cols//2-1]=-1
+            self.g_board[self.n_rows//2,self.n_cols//2]=1
+        else:
+            self.g_board[self.n_rows//2-1,self.n_cols//2-1]=-1
+            self.g_board[self.n_rows//2-1,self.n_cols//2]=1
+            self.g_board[self.n_rows//2,self.n_cols//2-1]=1
+            self.g_board[self.n_rows//2,self.n_cols//2]=-1
+
     #isValidMove(self,row,column,c)
     #    row: コマの位置縦
     #    col: コマの位置横

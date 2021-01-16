@@ -41,8 +41,9 @@ class KmoriReversiEnvironment(Environment):
     #Return: Map Data
     def build_map_from_game(self):
         
-        map_data=[]
+        map_data=[] # Agent石,Environment石,　Agentのおける場所、　Environmentのおける場所
         
+        #   １次元配列へ変換して、自石の存在位置を1としてmap_dataへ追加
         #   0： 現在の盤面(Agent=1　のコマの位置)
         board_data=(self.game.g_board.reshape(-1)== self.game.turn).astype(int)
         map_data.extend(board_data)
@@ -50,6 +51,14 @@ class KmoriReversiEnvironment(Environment):
         #   1： 現在の盤面(Environment=-1　のコマの位置)
         board_data=(self.game.g_board.reshape(-1)==-self.game.turn).astype(int)
         map_data.extend(board_data)
+        
+        # 自分と相手のボードは１枚で表現
+        """
+        board_data=self.game.g_board.reshape(-1)
+        board_data = np.where(board_data==self.game.turn, 2,board_data) # まず自分のコマを2に変換
+        board_data = np.where(board_data==-self.game.turn, 1,board_data) # さらに、相手の駒を１に変換
+        map_data.extend(board_data)
+        """
         
         #   2： Agent が置ける場所。"turn" の正負でAgent と Environment を表現している。
         #      正なら Agent となる。
@@ -59,13 +68,17 @@ class KmoriReversiEnvironment(Environment):
             pos_available[tuple(avail)]=1
         map_data.extend(pos_available.reshape(-1).tolist())
         
+        #環境がおける場所は入力しない
         #   3： Environmentの置ける場所
         pos_available=np.zeros_like(self.game.g_board)
         l_available=self.game.getPositionAvail(-self.game.turn)
         for avail in l_available:
-            pos_available[tuple(avail)]=1
+            #pos_available[tuple(avail)]=1
+            pos_available[tuple(avail)]=-1
+        #map_data.extend(pos_available.reshape(-1).tolist())
         map_data.extend(pos_available.reshape(-1).tolist())
-        
+    
+        #print("map",map_data)
         return map_data
     
     #env_init()
@@ -74,7 +87,7 @@ class KmoriReversiEnvironment(Environment):
         # OBSERVATONS INTS = 盤の状態 (-1 または 1 の値が self.n_rows*self.n_cols*4次元(詳細は、build_map_from_game()))
         # ACTIONS INTS = ○を打つ場所を指定 (-1 ~ (self.n_rows*self.n_cols-1))
         # REWARDS = 報酬 (-1.0 ~ 1.0)   ex) 勝 1, 引分 -0.5, 負 -1
-        return 'VERSION RL-Glue-3.0 PROBLEMTYPE episodic DISCOUNTFACTOR 0.99 OBSERVATIONS INTS ('+str(self.n_rows*self.n_cols*4)+' 0 1) ACTIONS INTS (-1 '+str(self.n_rows*self.n_cols-1)+') REWARDS (-1.0 1.0)'
+        return 'VERSION RL-Glue-3.0 PROBLEMTYPE episodic DISCOUNTFACTOR 0.95 OBSERVATIONS INTS ('+str(self.n_rows*self.n_cols*4)+' 0 1) ACTIONS INTS (-1 '+str(self.n_rows*self.n_cols-1)+') REWARDS (-1.0 1.0)'
     
     #env_start()
     #Episodeの開始
