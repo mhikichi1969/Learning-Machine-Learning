@@ -8,6 +8,16 @@ import Game_Reversi as game
 # Tkinterモジュールのインポート
 import tkinter
 
+import chainer
+import chainer.functions as F
+import chainer.links as L
+from chainer import cuda
+from chainer import optimizers
+from chainer import serializers
+
+#from Qnet_ex1 import MyQNet as QNet
+#from Qnet_ex2 import MyQNet as QNet
+
 class MyReversi(tkinter.Frame):
     def __init__(self, master=None):
         super().__init__(master)
@@ -15,10 +25,9 @@ class MyReversi(tkinter.Frame):
 
         self.canvas = tkinter.Canvas(root, bg="white", height=300, width=300)
 
-        self.offsx=60
+        self.offsx=30
         self.offsy=30
         self.size = 30
-        self.initBord()
         #elf.canvas.create_polygon(250, 10, 220, 100, 150, 100,fill="green")
         #self.canvas.create_line(10, 200, 150, 150, fill='red')
         #self.canvas.create_oval(100, 100, 150, 150)
@@ -33,24 +42,36 @@ class MyReversi(tkinter.Frame):
         self.canvas.bind('<Button-1>', self.lclick)
 
 
-        self.g=game.Game_Reversi(6,6)
+        self.g=game.Game_Reversi(8,8)
+        self.initBord()
         self.update(self.g.g_board)
+
+        #self.model_name = 'my_model_8x8_conv3_00060.hdf5'
+        #self.Q = QNet(128, 128 , 64)
+        #serializers.load_hdf5(self.model_name, self.Q)
+
+        ## 相手から
+        self.g.turn=-1
+        board, reward, done = self.g.step(None,1.0,True)
+        self.update(board)
 
     def initBord(self):
         tag_idx=0
-        for j in range(0,6):
-            for i in range(0,6):
+        for j in range(0,8):
+            for i in range(0,8):
                 self.canvas.create_rectangle(self.offsx+i*self.size, self.offsy+j*self.size, 
                                     self.offsx+i*self.size+self.size, self.offsy+j*self.size+self.size, 
                                     fill = 'green', tag=str(tag_idx))
                 tag_idx=tag_idx+1
 
+
+
     def update(self,b):
         stone=''
-        for j in range(0,6):
-            for i in range(0,6):
-                if b[j,i]==-1: stone='black'
-                if b[j,i]==1: stone='white'
+        for j in range(0,8):
+            for i in range(0,8):
+                if b[j,i]==1: stone='black'
+                if b[j,i]==-1: stone='white'
                 if b[j,i]!=0:
                     cx1=self.offsx+i*self.size+2
                     cy1=self.offsy+j*self.size+2
@@ -70,13 +91,13 @@ class MyReversi(tkinter.Frame):
             num_str = l[0].split()
             num = int(num_str[0])
             print(num)
-            row=num//6
-            col=num%6
-            board, reward, done = self.g.step((row,col))
+            row=num//8
+            col=num%8
+            board, reward, done = self.g.step((row,col),tau=0.0001)
             self.update(board)
 
     def pass_click(self):
-            board, reward, done = self.g.step((-1,-1))
+            board, reward, done = self.g.step((-1,-1),tau=0.0001)
             self.update(board)
     def end_click(self):
         pass

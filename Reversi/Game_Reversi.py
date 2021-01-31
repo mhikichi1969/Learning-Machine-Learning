@@ -3,6 +3,13 @@
 import numpy as np
 import random
 
+import chainer
+import chainer.serializers as serializers
+
+#from Qnet_ex1 import MyQNet
+from Qnet_ex2 import MyQNet
+import cupy.cudnn
+
 class Game_Reversi:
     turn = 1      #agent=1,environment=-1
     g_board=[]
@@ -17,7 +24,8 @@ class Game_Reversi:
     
     # 表示
     render=False
-    
+    render2=True
+
     #__init__(n_rows,n_cols)
     #    n_rows: ボードサイズ縦
     #    n_cols: ボードサイズ横
@@ -40,6 +48,12 @@ class Game_Reversi:
             self.g_board[self.n_rows//2-1,self.n_cols//2]=1
             self.g_board[self.n_rows//2,self.n_cols//2-1]=1
             self.g_board[self.n_rows//2,self.n_cols//2]=-1
+
+#        self.model_name = 'bestmodel.hdf5'
+        #self.Q = MyQNet(128, 128 , 64)
+        self.model_name = 'conv3best.hdf5'
+        self.Q = MyQNet(128, 64*3 , 64)
+        serializers.load_hdf5(self.model_name, self.Q)
 
     #isValidMove(self,row,column,c)
     #    row: コマの位置縦
@@ -144,7 +158,9 @@ class Game_Reversi:
                     board[tuple(cpos)] = c
                     numFlip = numFlip + 1
                     cpos=cpos-direction
-        return numFlip
+            num_enemy=len(np.where(board==-c)[1]) #　[1]指定は、2　x(コマ数)の配列になるため
+
+        return numFlip,num_enemy
     
     
     #resetBoard()
@@ -152,10 +168,17 @@ class Game_Reversi:
     def resetBoard(self):
         self.g_board=self.g_board*0
         #ボードリセット
-        self.g_board[self.n_rows//2-1,self.n_cols//2-1]=1
-        self.g_board[self.n_rows//2-1,self.n_cols//2]=-1
-        self.g_board[self.n_rows//2,self.n_cols//2-1]=-1
-        self.g_board[self.n_rows//2,self.n_cols//2]=1
+        color = random.randint(0,1)
+        if color==0:
+            self.g_board[self.n_rows//2-1,self.n_cols//2-1]=1
+            self.g_board[self.n_rows//2-1,self.n_cols//2]=-1
+            self.g_board[self.n_rows//2,self.n_cols//2-1]=-1
+            self.g_board[self.n_rows//2,self.n_cols//2]=1
+        else:
+            self.g_board[self.n_rows//2-1,self.n_cols//2-1]=-1
+            self.g_board[self.n_rows//2-1,self.n_cols//2]=1
+            self.g_board[self.n_rows//2,self.n_cols//2-1]=1
+            self.g_board[self.n_rows//2,self.n_cols//2]=-1
     
     #getPositionAvail(c)
     #    c: 対象プレイヤー(1=Agentもしくは人間、-1=Environment)
@@ -164,7 +187,7 @@ class Game_Reversi:
     def getPositionAvail(self,c):
         temp=np.vstack(np.where(self.g_board==0))
         nullTiles=np.hstack((temp[0].reshape(-1,1),temp[1].reshape(-1,1)))    
-        
+
         # コマが無いマスについて、 IsValidMove()
         can_put=[]
         for p_pos in nullTiles:
@@ -186,11 +209,12 @@ class Game_Reversi:
         maxPos=[]
         cornerPos=[]
         returnPos=[]
+        winPos=[]
         numStone=0
         for p_pos in can_put:
             if (p_pos[0]==0 or p_pos[0]==self.n_rows-1) and (p_pos[1]==0 or p_pos[1]==self.n_cols-1):
                 cornerPos.append(p_pos)
-            cur_numstone=self.putStone(p_pos[0],p_pos[1],c,True)
+            cur_numstone,num_enemy=self.putStone(p_pos[0],p_pos[1],c,True)
             if numStone < cur_numstone:
                 numStone = cur_numstone
                 maxPos=p_pos
@@ -199,14 +223,15 @@ class Game_Reversi:
         # 結果的に PASS　になる。
         if can_put==[] :
             return []
-        
+
         # ランダムとするか決める
         t_rnd=np.random.random()
-        
+       
         # 1. 角がある場合は、90% の確率でそこを取る
-        if cornerPos != []:
-            if t_rnd < 0.9:
-                returnPos= cornerPos[np.random.randint(0,len(cornerPos))]
+        if returnPos==[]:
+            if cornerPos != []:
+                if t_rnd < 0.9:
+                    returnPos= cornerPos[np.random.randint(0,len(cornerPos))]
         
         #　2. 次に、80% の確率で最も数が多いものを取得する。
         if returnPos==[]:
@@ -226,27 +251,35 @@ class Game_Reversi:
     #2. 自身のコマを置きボードに反映する。
     #3. 報酬の決定、終了判定を行う
     #Return: ボード状態、報酬、終了かどうか
-    def step(self,player_pos):
-        #　パスしたか?    
-        if player_pos ==(-1,-1) :
-            # 今は特に処理なし。。
-            if self.render : print("PASS!")
-        else:
-            if(self.isValidMove(player_pos[0],player_pos[1],self.turn)):
-                # 更新
-                self.putStone(player_pos[0],player_pos[1],self.turn,False)
+    def step(self,player_pos,tau=-1,skip=False):
+
+        if skip==False:
+            #　パスしたか?    
+            if player_pos ==(-1,-1) :
+                # 今は特に処理なし。。
+                if self.render : print("PASS!")
             else:
-                # トレーニングとValidation中は発生し得ない
-                # reward0 でそのまま返す。
-                print("Bad Move...%i, %i, %i"%(player_pos[0],player_pos[1],self.turn))
-                return self.g_board,0,False
+                if(self.isValidMove(player_pos[0],player_pos[1],self.turn)):
+                    # 更新
+                    self.putStone(player_pos[0],player_pos[1],self.turn,False)
+                else:
+                    # トレーニングとValidation中は発生し得ない
+                    # reward0 でそのまま返す。
+                    print("Bad Move...%i, %i, %i"%(player_pos[0],player_pos[1],self.turn))
+                    return self.g_board,0,False
+            
+            # 盤表示
+            if self.render : print("Your turn ends...")
+            if self.render : print(self.g_board)
+            skip=False
         
-        # 盤表示
-        if self.render : print("Your turn ends...")
-        if self.render : print(self.g_board)
-        
+
         # ****環境のターン
-        stonePos = self.getPosition(-self.turn)
+        if tau<0: # eps戦略
+            stonePos = self.getPosition(-self.turn)
+        else: # softmax戦略
+            stonePos = self.getPosition_fromQNet(-self.turn,tau)
+
         if stonePos == []:
             # 今は特に処理なし。。
             if self.render : print("PASS!")
@@ -275,7 +308,7 @@ class Game_Reversi:
             #　2.　終了ならば報酬計算
             num_agent=len(np.where(self.g_board==self.turn)[1])       #　[1]指定は、2　x(コマ数)の配列になるため
             num_envionment=len(np.where(self.g_board==-self.turn)[1]) #　[1]指定は、2　x(コマ数)の配列になるため
-            if self.render : print("you:%i/environment:%i" % (num_agent,num_envionment))
+            if self.render or self.render2 : print("you:%i/environment:%i" % (num_agent,num_envionment))
             # 判定
             if num_agent > num_envionment :
                 reward=1.0
@@ -284,9 +317,72 @@ class Game_Reversi:
                 reward=-1.0
                 if self.render : print("you lose!")
             else :
-                reward=-0.5
+                reward=0.01
                 if self.render : print("Draw!")
         #終了    
         # observation, reward, done を返す
         return self.g_board,reward,done
 
+
+
+    def getPosition_fromQNet(self,c,tau=0.1):
+        self.xp = np
+        can_put=[]
+        can_put=self.getPositionAvail(c)
+       # print('can',can_put)
+
+        can_put_idx=[]
+        for p_pos in can_put:
+            can_put_idx.append(p_pos[0]*8+p_pos[1])
+
+        if can_put_idx==[]: 
+            return []
+
+
+        map_data=[] # Agent石,Environment石,　Agentのおける場所、　Environmentのおける場所
+        
+        #   １次元配列へ変換して、自石の存在位置を1としてmap_dataへ追加
+        #   0： 現在の盤面(Agent=1　のコマの位置)
+        board_data=(self.g_board.reshape(-1)== c).astype(int)
+        map_data.extend(board_data)
+        
+        #   1： 現在の盤面(Environment=-1　のコマの位置)
+        board_data=(self.g_board.reshape(-1)==-c).astype(int)
+        map_data.extend(board_data)
+        
+        # コマの位置
+        frame = (np.asarray(map_data).astype(np.float32).reshape(1, 2, self.n_rows, self.n_cols))
+        frame = chainer.Variable(self.xp.asarray(frame))
+
+        Q_data = self.Q.value(frame,drop=0.0)
+
+        #　先頭のQ値
+        Qdata = Q_data[0].data
+        #print(Qdata)
+
+       #　アクションを決定します。
+        #     石を置けるマスの中から、Q値の最も高いものを行動として選択しています。
+        idxs=[]
+        vQ=[]
+        for i in np.argsort(-Qdata):
+            if i in can_put_idx:
+                idxs.append(i)
+                vQ.append(Qdata[i])
+        #print(Qdata,idxs,vQ )
+        int_action = self.softmax_selection(tau,vQ,idxs)
+
+        #int_action = idxs[0]
+        return int_action//8,int_action%8
+
+    def softmax_selection(self,tau, values,idxs):
+        """
+            softmax 行動選択
+        """
+        emax = max([(v/tau) for v in values])
+        sum_exp_values = sum([np.exp(v/tau-emax) for v in values])   # softmax選択の分母の計算
+        p = [np.exp(v/tau-emax)/sum_exp_values for v in values]      # 確率分布の生成
+        #print("P=",p)
+
+        action = np.random.choice(np.arange(len(values)), p=p)  # 確率分布pに従ってランダムで選択
+       # print("action",action)
+        return idxs[action]

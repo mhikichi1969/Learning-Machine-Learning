@@ -83,7 +83,7 @@ def runEpisode(step_limit):
         total_lose = 0
 
     # 1000回毎にモデルの書き出し
-    model_write_interval = 1000
+    model_write_interval = 200
 
     if which_episode % model_write_interval == 0:
        # 途中結果の書き出しの呼び出し
@@ -107,7 +107,7 @@ print("RL_init called, the environment sent task spec: " + task_spec)
 # 50,000回実行
 for cnt in range(0, 5 * 10**4):
     runEpisode(0)
-    if cnt>0 and cnt%1000==0:
+    if cnt>0 and cnt%200==0:
         saveGraph(cnt,ns_epoch,pcts_win_or_draw)
 
 # 学習結果をグラフで出力

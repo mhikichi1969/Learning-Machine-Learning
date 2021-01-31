@@ -48,33 +48,36 @@ class QNet(chainer.Chain):
     # conv2dで構成
     def __init__(self, n_in, n_units, n_out):
         super(QNet, self).__init__(
-            l1=L.Convolution2D(in_channels=2,out_channels=192, ksize = 5, pad = 2),   # 6*6
-            l200=L.Convolution2D(in_channels=192,out_channels=192, ksize = 3, pad = 1), 
-            l201=L.Convolution2D(in_channels=192,out_channels=192, ksize = 3, pad = 1),
-            l202=L.Convolution2D(in_channels=192,out_channels=192, ksize = 3, pad = 1),
-            l203=L.Convolution2D(in_channels=192,out_channels=192, ksize = 3, pad = 1),
-            l204=L.Convolution2D(in_channels=192,out_channels=192, ksize = 3, pad = 1),
-            l205=L.Convolution2D(in_channels=192,out_channels=192, ksize = 3, pad = 1),
-            l206=L.Convolution2D(in_channels=192,out_channels=192, ksize = 3, pad = 1),
-            l207=L.Convolution2D(in_channels=192,out_channels=192, ksize = 3, pad = 1),
-            l208=L.Convolution2D(in_channels=192,out_channels=192, ksize = 3, pad = 1),# 追加
-            l209=L.Convolution2D(in_channels=192,out_channels=192, ksize = 3, pad = 1), # 追加
-            l210=L.Convolution2D(in_channels=192,out_channels=192, ksize = 3, pad = 1),  # 追加 
-            l211=L.Convolution2D(in_channels=128,out_channels=1, ksize = 1, nobias=True),  #    未使用
+            l1=L.Convolution2D(in_channels=2,out_channels=n_units, ksize = 3, pad = 1),   # 6*6
+            l200=L.Convolution2D(in_channels=n_units,out_channels=n_units, ksize = 3, pad = 1), 
+            l201=L.Convolution2D(in_channels=n_units,out_channels=n_units, ksize = 3, pad = 1),
+            l202=L.Convolution2D(in_channels=n_units,out_channels=n_units, ksize = 3, pad = 1),
+            l203=L.Convolution2D(in_channels=n_units,out_channels=n_units, ksize = 3, pad = 1),
+            l204=L.Convolution2D(in_channels=n_units,out_channels=n_units, ksize = 3, pad = 1),
+            l205=L.Convolution2D(in_channels=n_units,out_channels=n_units, ksize = 3, pad = 1),
+            l206=L.Convolution2D(in_channels=n_units,out_channels=n_units, ksize = 3, pad = 1),
+            l207=L.Convolution2D(in_channels=n_units,out_channels=n_units, ksize = 3, pad = 1),
+            l208=L.Convolution2D(in_channels=n_units,out_channels=n_units, ksize = 3, pad = 1),# 追加
+            l209=L.Convolution2D(in_channels=n_units,out_channels=n_units, ksize = 3, pad = 1), # 追加
+            l210=L.Convolution2D(in_channels=n_units,out_channels=n_units, ksize = 3, pad = 1),  # 追加 
+            l211=L.Convolution2D(in_channels=n_units,out_channels=n_units, ksize = 3, pad = 1),  #    追加 
+            l212=L.Convolution2D(in_channels=n_units,out_channels=1, ksize = 1, nobias=True),  #    未使用
             l31=L.Bias(shape=(8*8)),# 未使用
-            l32=L.Linear(64*3*64,256,nobias=True),  # 追加
+            l32=L.Linear(n_units*64,256,nobias=True),  # 追加
             l33=L.Linear(256,n_out,nobias=True),  # 追加
 
-            b01=L.BatchNormalization(size=192),
-            b02=L.BatchNormalization(size=192),
-            b03=L.BatchNormalization(size=192),
-            b04=L.BatchNormalization(size=192),
-            b05=L.BatchNormalization(size=192),
-            b06=L.BatchNormalization(size=192),
-            b07=L.BatchNormalization(size=192),
-            b08=L.BatchNormalization(size=192),
-            b09=L.BatchNormalization(size=192),
-            b10=L.BatchNormalization(size=192),
+            b01=L.BatchNormalization(size=n_units),
+            b02=L.BatchNormalization(size=n_units),
+            b03=L.BatchNormalization(size=n_units),
+            b04=L.BatchNormalization(size=n_units),
+            b05=L.BatchNormalization(size=n_units),
+            b06=L.BatchNormalization(size=n_units),
+            b07=L.BatchNormalization(size=n_units),
+            b08=L.BatchNormalization(size=n_units),
+            b09=L.BatchNormalization(size=n_units),
+            b10=L.BatchNormalization(size=n_units),
+            b11=L.BatchNormalization(size=n_units),
+            b12=L.BatchNormalization(size=n_units),
         )
    
 
@@ -82,7 +85,7 @@ class QNet(chainer.Chain):
     #       x: 入力層の値
     #ニューラルネットワークによる計算
     #Return: 出力層の結果
-    def value(self, x , drop=0.5):
+    def value(self, x , drop=0.4):
         h = F.relu(self.b01(self.l1(x)))
         h = F.relu(self.b02(self.l200(h)))
         h = F.relu(self.b03(self.l201(h)))
@@ -93,9 +96,9 @@ class QNet(chainer.Chain):
         h = F.relu(self.b08(self.l206(h)))
         h = F.relu(self.b09(self.l207(h)))
         h = F.relu(self.b10(self.l208(h))) #追加
-        h = F.relu(self.l209(h)) #追加 
-        h = F.relu(self.l210(h)) #追加 
-       # h = F.relu(self.l211(h)) #追加 
+        h = F.relu(self.b11(self.l209(h))) #追加 
+        h = F.relu(self.b12(self.l210(h))) #追加 
+        h = F.relu(self.l211(h)) #追加 
 #        print('h210',h.size,h)
         #h= F.relu(self.l31(F.reshape(h,(len(h.data), (8*8)))))
         #print('l31',h.size,h)
@@ -169,14 +172,14 @@ class KmoriReversiAgent(Agent):
         self.gpu = gpu
         
         # 学習を開始させるステップ数
-        self.learn_start = 5 * 10**3
+        self.learn_start = 1 * 10**3
         
         # 保持するデータ数(changed)
-        self.capacity = 2 * 10**4
+        self.capacity = 1 * 10**4
         
         # eps = ランダムに○を決定する確率
-        self.eps_start = 0.001
-        self.eps_end = 0.001
+        self.eps_start = 0.01
+        self.eps_end = 0.01
         self.eps = self.eps_start
         self.eps_step = 0
         self.eps_max = 5* 10**3
@@ -184,31 +187,34 @@ class KmoriReversiAgent(Agent):
         self.n_frames = 1    # org 9
         
         # 一度の学習で使用するデータサイズ
-        self.batch_size = 128
+        self.batch_size = 200
         
         self.replay_mem = []
         self.last_state = None
         self.last_action = None
+        self.last_state2 = None
+        self.last_action2 = None
+        self.last_reward = None
         self.reward = None
         #self.state = np.zeros((1, self.n_frames, self.bdim)).astype(np.float32)
         self.state = np.zeros((1, 2, self.n_rows, self.n_cols)).astype(np.float32)
-        
         self.step_counter = 0
         
-        self.update_freq = 1 * 10**4
+        #self.update_freq = 1 * 10**3
+        self.update_freq = 1
         
         self.r_win = 1.0
-        self.r_draw = -0.5
+        self.r_draw = 0.01
         self.r_lose = -1.0
         
         self.frozen = False
         
         self.win_or_draw = 0
-        self.stop_learning = 200
+        self.stop_learning = 500
 
         self.file_idx=index
-        self.model_name='my_model_8x8_conv2'
-        self.opt_name='my_opt_8x8_conv2'
+        self.model_name='my_model_8x8_conv3'
+        self.opt_name='my_opt_8x8_conv3'
 
         self.debug_flag=False
 
@@ -234,7 +240,7 @@ class KmoriReversiAgent(Agent):
         #　Arg2:　隠れ層ノード数
         #　Arg3：　出力層サイズ
         #self.Q = QNet(self.bdim*self.n_frames, self.bdim*self.n_frames, self.dim)
-        self.Q = QNet(self.bdim*self.n_frames, self.bdim*12 , self.dim)
+        self.Q = QNet(self.bdim*self.n_frames, self.dim*3 , self.dim)
         if self.file_idx>=0:
             serializers.load_hdf5(self.model_name+"_{0:05}.hdf5".format(self.file_idx), self.Q)
             self.step_counter= self.file_idx*1000 
@@ -248,10 +254,9 @@ class KmoriReversiAgent(Agent):
         
         self.targetQ = copy.deepcopy(self.Q)
         
-       # self.optimizer = optimizers.RMSpropGraves(lr=0.01, alpha=0.95,
-       #                                           momentum=0.0,eps=0.01)
+        self.optimizer = optimizers.RMSpropGraves(lr=0.01, alpha=0.95,momentum=0.0,eps=0.01)
        # self.optimizer = optimizers.Adam(alpha=0.01, beta1=0.9, beta2=0.999, final_lr=0.1, gamma=0.001, eps=1e-08, eta=1.0)
-        self.optimizer = optimizers.SGD(lr=0.001)
+        #self.optimizer = optimizers.SGD(lr=0.01)
         self.optimizer.setup(self.Q)
 
         if self.file_idx>=0:
@@ -292,6 +297,8 @@ class KmoriReversiAgent(Agent):
         self.update_eps()
         
         # state = 盤の状態 と action = ○を打つ場所 を退避する
+        self.last_state2 = copy.deepcopy(self.last_state) # ２手前の状態
+        self.last_action2 = copy.deepcopy(self.last_action) # ２手前の行動
         self.last_state = copy.deepcopy(self.state)
         self.last_action = copy.deepcopy(int_action)
         
@@ -328,6 +335,8 @@ class KmoriReversiAgent(Agent):
             if self.step_counter > self.learn_start:
                 self.replay_experience()
         
+        self.last_state2 = copy.deepcopy(self.last_state) # ２手前の状態
+        self.last_action2 = copy.deepcopy(self.last_action) # ２手前の行動
         self.last_state = copy.deepcopy(self.state)
         self.last_action = copy.deepcopy(int_action)
         
@@ -481,7 +490,7 @@ class KmoriReversiAgent(Agent):
         # Follow the epsilon greedy strategy
         if np.random.rand() < self.eps:
             int_action = free[np.random.randint(len(free))]
-           # print("random challenge",int_action)
+            #print("random challenge:",self.step_counter,int_action)
         else:
             #　先頭のQ値
             Qdata = Q.data[0]

@@ -19,7 +19,10 @@ class KmoriReversiEnvironment(Environment):
     
     # 敵プレイヤーが正常に打つ確率
     opp = 0.75
-    
+
+    #t =0.5
+    t=-1.0 # randam戦略
+
     #__init__(size)
     #    size: ボードサイズ
     #今回は、正方形のボードのみ対応することとする。
@@ -131,7 +134,7 @@ class KmoriReversiEnvironment(Environment):
             step_raw_col=(int_action_agent//self.n_cols,int_action_agent%self.n_cols)
         
         # step　実行
-        step_o, step_r, step_done = self.game.step(step_raw_col)
+        step_o, step_r, step_done = self.game.step(step_raw_col, tau=self.t)
         
         rot = Reward_observation_terminal()
         
